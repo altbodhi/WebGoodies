@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Подписать xml</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.1/css/bulma.min.css">
+    <script src="https://www.cryptopro.ru/sites/default/files/products/cades/cadesplugin_api.js">
+    </script>
+
+    <script defer src="https://use.fontawesome.com/releases/v5.14.0/js/all.js"></script>
+</head>
+
+<body>
+    <div class="columns">
+        <div class="column is-half">
+            <div class="container is-fluid">
+
+                <form>
+                    <div class="card">
+                        <div class="field">
+                            <div class="select">
+                                <script>
+                                    const changeCert = function (ie) {
+                                        let s = ie.value.indexOf('CN=');
+                                        let cn = ie.value.substring(s > -1 ? s + 3 : 0, ie.value.indexOf(",", s + 1));
+                                        document.getElementById("CertName").value = cn;
+                                    }
+                                </script>
+                                <select id="certs" onchange="changeCert(this)">
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="field">
+                            <div class="control">
+                                <input class="input is-primary" id="CertName" type="text" placeholder="CN">
+                            </div>
+                        </div>
+                        <div class="field">
+                            <div class="file">
+                                <label class="file-label">
+                                    <script>
+                                        const changefile = function (ie) {
+                                            let files = ie.files
+                                            if (files.length === 0) {
+                                                document.getElementById("file-name").innerText = 'No file selected'
+                                            } else {
+                                                document.getElementById("file-name").innerText = files[0].name;
+                                            }
+                                        }
+                                    </script>
+                                    <input class="file-input" onchange="changefile(this)" type="file" id="uploadFile"
+                                        name="resume">
+                                    <span class="file-cta">
+                                        <span class="file-icon">
+                                            <i class="fas fa-upload"></i>
+                                        </span>
+                                        <span class="file-label">
+                                            Выбрать файл…
+                                        </span>
+                                    </span>
+                                    <span class="file-name" id="file-name">
+
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <div class="control">
+                                <button class="button is-primary"
+                                    onclick="javascript: run(); return false;">Подписать</button>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <div class="card">
+                                <div class="field">
+                                    <div class="control">
+                                        <h1 class="title">Подпись</h1>
+                                        <div class="content is-boxed" id="signature">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                </form>
+
+            </div>
+        </div>
+        <div class="column"></div>
+        <div class="column">
+            <a class="is-link" target="_blank"
+                href="https://www.cryptopro.ru/sites/default/files/products/cades/demopage/cades_bes_sample.html">Страница
+                плагина</a>
+                <a class="is-link" target="_blank"
+                href="https://www.cryptopro.ru/certsrv/certrqma.asp" >Получить сертификат</a>
+        </div>
+    </div>
+    <script language="javascript">
+        cadesplugin.then(
+            function () {
+                const lstId = 'certs';
+                cadesplugin.async_spawn(function* () {
+                    var MyStoreExists = true;
+                    try {
+                        var oStore = yield cadesplugin.CreateObjectAsync("CAdESCOM.Store");
+                        if (!oStore) {
+                            alert("Create store failed");
+                            return;
+                        }
+
+                        yield oStore.Open();
+                    }
+                    catch (ex) {
+                        MyStoreExists = false;
+                    }
+
+                    var lst = document.getElementById(lstId);
+                    if (!lst) {
+                        return;
+                    }
+
+                    lst.boxId = lstId;
+
+                    var certCnt;
+                    var certs;
+                    if (MyStoreExists) {
+                        try {
+                            certs = yield oStore.Certificates;
+                            certCnt = yield certs.Count;
+                        }
+                        catch (ex) {
+                            alert("Ошибка при получении Certificates или Count: " + cadesplugin.getLastError(ex));
+                            return;
+                        }
+                        for (var i = 1; i <= certCnt; i++) {
+                            var cert;
+                            try {
+                                cert = yield certs.Item(i);
+                            }
+                            catch (ex) {
+                                alert("Ошибка при перечислении сертификатов: " + cadesplugin.getLastError(ex));
+                                return;
+                            }
+
+                            var oOpt = document.createElement("OPTION");
+                            var dateObj = new Date();
+                            try {
+                                oOpt.text = yield cert.SubjectName;
+                            }
+                            catch (ex) {
+                                alert("Ошибка при получении свойства SubjectName: " + cadesplugin.getLastError(ex));
+                            }
+
+
+                            lst.options.add(oOpt);
+                        }
+
+                        yield oStore.Close();
+                    }
+                });
+            });
+
+        var CADESCOM_CADES_BES = 1;
+        var CAPICOM_CURRENT_USER_STORE = 2;
+        var CAPICOM_MY_STORE = "My";
+        var CAPICOM_STORE_OPEN_MAXIMUM_ALLOWED = 2;
+        var CAPICOM_CERTIFICATE_FIND_SUBJECT_NAME = 1;
+        var CADESCOM_BASE64_TO_BINARY = 1;
+
+
+        function run() {
+            cadesplugin.async_spawn(function* (args) {
+                // Проверяем, работает ли File API
+                if (window.FileReader) {
+                    // Браузер поддерживает File API.
+                } else {
+                    alert('The File APIs are not fully supported in this browser.');
+                }
+                if (0 === document.getElementById("uploadFile").files.length) {
+                    alert("Select the file.");
+                    return;
+                }
+                var oFile = document.getElementById("uploadFile").files[0];
+                var oFReader = new FileReader();
+
+                if (typeof (oFReader.readAsDataURL) != "function") {
+                    alert("Method readAsDataURL() is not supported in FileReader.");
+                    return;
+                }
+
+                oFReader.readAsDataURL(oFile);
+
+                oFReader.onload = function (oFREvent) {
+                    cadesplugin.async_spawn(function* (args) {
+                        var header = ";base64,";
+                        var sFileData = oFREvent.target.result;
+                        var sBase64Data = sFileData.substr(sFileData.indexOf(header) + header.length);
+
+                        var oCertName = document.getElementById("CertName");
+                        var sCertName = oCertName.value; // Здесь следует заполнить SubjectName сертификата
+                        if ("" == sCertName) {
+                            alert("Введите имя сертификата (CN).");
+                            return;
+                        }
+                        var oStore = yield cadesplugin.CreateObjectAsync("CAdESCOM.Store");
+                        yield oStore.Open(CAPICOM_CURRENT_USER_STORE, CAPICOM_MY_STORE,
+                            CAPICOM_STORE_OPEN_MAXIMUM_ALLOWED);
+
+                        var oStoreCerts = yield oStore.Certificates;
+                        var oCertificates = yield oStoreCerts.Find(
+                            CAPICOM_CERTIFICATE_FIND_SUBJECT_NAME, sCertName);
+                        var certsCount = yield oCertificates.Count;
+                        if (certsCount === 0) {
+                            alert("Certificate not found: " + sCertName);
+                            return;
+                        }
+                        var oCertificate = yield oCertificates.Item(1);
+                        var oSigner = yield cadesplugin.CreateObjectAsync("CAdESCOM.CPSigner");
+                        yield oSigner.propset_Certificate(oCertificate);
+                        yield oSigner.propset_CheckCertificate(true);
+                        yield oSigner.propset_Options(cadesplugin.CAPICOM_CERTIFICATE_INCLUDE_WHOLE_CHAIN);
+                        var oSignedData = yield cadesplugin.CreateObjectAsync("CAdESCOM.CadesSignedData");
+                        yield oSignedData.propset_ContentEncoding(CADESCOM_BASE64_TO_BINARY);
+                        yield oSignedData.propset_Content(sBase64Data);
+
+                        try {
+                            var sSignedMessage = yield oSignedData.SignCades(oSigner, CADESCOM_CADES_BES, true);
+                        } catch (err) {
+                            alert("Failed to create signature. Error: " + cadesplugin.getLastError(err));
+                            return;
+                        }
+
+                        yield oStore.Close();
+
+                        // Выводим отделенную подпись в BASE64 на страницу
+                        // Такая подпись должна проверяться в КриптоАРМ и cryptcp.exe
+                        document.getElementById("signature").innerHTML = sSignedMessage;
+
+                        var oSignedData2 = yield cadesplugin.CreateObjectAsync("CAdESCOM.CadesSignedData");
+                        try {
+                            yield oSignedData2.propset_ContentEncoding(CADESCOM_BASE64_TO_BINARY);
+                            yield oSignedData2.propset_Content(sBase64Data);
+                            yield oSignedData2.VerifyCades(sSignedMessage, CADESCOM_CADES_BES, true);
+                            alert("Signature verified");
+                        } catch (err) {
+                            alert("Failed to verify signature. Error: " + cadesplugin.getLastError(err));
+                            return;
+                        }
+                    });
+                };
+            });
+        }
+
+
+
+    </script>
+</body>
+
+</html>
