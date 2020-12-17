@@ -51,8 +51,8 @@
                                             }
                                         }
                                     </script>
-                                    <input class="file-input" onchange="changefile(this)" type="file" id="uploadFile"
-                                        name="resume">
+                                    <input class="file-input" accept=".xml" onchange="changefile(this)" type="file"
+                                        id="uploadFile" name="resume">
                                     <span class="file-cta">
                                         <span class="file-icon">
                                             <i class="fas fa-upload"></i>
@@ -69,8 +69,12 @@
                         </div>
                         <div class="field">
                             <div class="control">
-                                <button class="button is-primary"
-                                    onclick="javascript: run(); return false;">Подписать</button>
+                                <div class="buttons">
+                                    <button type="button" class="button is-primary"
+                                        onclick="javascript: run(); return false;">Подписать</button>
+                                    <button id="download" type="button" class="button is-warning disabled"
+                                        onclick="javascript: save(); return false;">Скачать</button>
+                                </div>
                             </div>
                         </div>
                         <div class="field">
@@ -95,8 +99,8 @@
             <a class="is-link" target="_blank"
                 href="https://www.cryptopro.ru/sites/default/files/products/cades/demopage/cades_bes_sample.html">Страница
                 плагина</a>
-                <a class="is-link" target="_blank"
-                href="https://www.cryptopro.ru/certsrv/certrqma.asp" >Получить сертификат</a>
+            <a class="is-link" target="_blank" href="https://www.cryptopro.ru/certsrv/certrqma.asp">Получить
+                сертификат</a>
         </div>
     </div>
     <script language="javascript">
@@ -172,7 +176,27 @@
         var CADESCOM_BASE64_TO_BINARY = 1;
 
 
+
+
+
+
+        function save() {
+
+            var a = document.createElement("a");
+            document.body.appendChild(a);
+            a.style = "display: none";
+
+            blob = new Blob([document.getElementById("signature").innerHTML], { type: "octet/stream" }),
+                url = window.URL.createObjectURL(blob);
+            a.href = url;
+            a.download = document.getElementById('uploadFile').files.item(0).name + ".sig";
+            a.click();
+            window.URL.revokeObjectURL(url);
+
+        };
+
         function run() {
+            document.getElementById("download").classList.add('disabled');
             cadesplugin.async_spawn(function* (args) {
                 // Проверяем, работает ли File API
                 if (window.FileReader) {
@@ -239,13 +263,12 @@
                         // Выводим отделенную подпись в BASE64 на страницу
                         // Такая подпись должна проверяться в КриптоАРМ и cryptcp.exe
                         document.getElementById("signature").innerHTML = sSignedMessage;
-
+                        document.getElementById("download").classList.remove('disabled');
                         var oSignedData2 = yield cadesplugin.CreateObjectAsync("CAdESCOM.CadesSignedData");
                         try {
                             yield oSignedData2.propset_ContentEncoding(CADESCOM_BASE64_TO_BINARY);
                             yield oSignedData2.propset_Content(sBase64Data);
                             yield oSignedData2.VerifyCades(sSignedMessage, CADESCOM_CADES_BES, true);
-                            alert("Signature verified");
                         } catch (err) {
                             alert("Failed to verify signature. Error: " + cadesplugin.getLastError(err));
                             return;
